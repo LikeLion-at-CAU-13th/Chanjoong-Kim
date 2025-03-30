@@ -26,3 +26,28 @@ class Post(BaseModel): # BaseModel을 상속받음
 
     def __str__(self):
         return self.title
+    
+class Comment(BaseModel): # 댓글 기능, 댓글 사용자의 id는 따로 입력 받는다.
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name = 'comment')
+    c_id = models.AutoField(primary_key = True)
+    author = models.CharField(max_length = 30)
+    body = models.TextField()
+    writen_time = models.DateTimeField(auto_now_add = True)
+    modified_time = models.DateTimeField(auto_now = True)
+
+    def __str__(self):
+        return self.body
+    
+class Category(BaseModel):
+    cat_id = models.AutoField(primary_key=True)
+    cat_name = models.CharField(max_length=30)
+
+    def __str__(self):
+        return self.cat_name
+    
+class cat_post_linker(BaseModel):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='linked_post')
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='linked_cat')
+    
+    def __str__(self): # 제목 - 카테고리 쌍으로 만들기
+        return f'{self.post.title} - {self.category.cat_name}'
