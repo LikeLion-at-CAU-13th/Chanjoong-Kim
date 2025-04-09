@@ -166,6 +166,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'accounts.User'
 
 # log관련 코드 추가
+BASE_DIR = Path(__file__).resolve().parent.parent
 log_directory = os.path.join(BASE_DIR, 'logs') # linux 서버 상에서 django가 run되면 logs라는 디렉토리가 생성
 os.makedirs(log_directory, exist_ok=True)
 
