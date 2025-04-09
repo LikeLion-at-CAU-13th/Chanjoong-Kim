@@ -67,6 +67,7 @@ INSTALLED_APPS = DJANGO_APPS + PROJECT_APPS + THIRD_PARTY_APPS
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware', # 반드시 가장 위쪽에 추가
+    'config.logmiddleware.RequestLoggingMiddleware', # log에 대한 커스텀 미들웨어
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -163,3 +164,44 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'accounts.User'
+
+# log관련 코드 추가
+log_directory = os.path.join(BASE_DIR, 'logs') # linux 서버 상에서 django가 run되면 logs라는 디렉토리가 생성
+os.makedirs(log_directory, exist_ok=True)
+
+LOGGING = {
+
+    'version': 1, # 파이썬 logging 설정에 1 밖에 없음
+    
+    'disable_existing_loggers': False, # 주로 False 사용, True 사용 시 기본 logger가 초기화
+
+    'formatters': { # 로그 메시지 출력 형태
+        'verbose': {
+            'format': '[{asctime}] {levelname} {message}', # [시간] 로그_레벨 로그_메시지지
+            'style': '{', # python 3의 포맷 스타일
+        },
+    },
+
+    'handlers': { # 로그 메시지를 어디로 전달할 지 정해주는 handler
+        'file_info': { # info 형식의 로그는 requests.log로 전송
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(log_directory, 'requests.log'),
+            'formatter': 'verbose',
+        },
+        'file_error': { # waring 형식의 로그는 errors.log로 전송
+            'level': 'WARNING',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(log_directory, 'errors.log'),
+            'formatter': 'verbose',
+        },
+    },
+
+    'loggers': { # 처리할 로그 종류
+        'django.request': { # HTTP 요청/응답/에러 처리시 받음
+            'handlers': ['file_info', 'file_error'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
