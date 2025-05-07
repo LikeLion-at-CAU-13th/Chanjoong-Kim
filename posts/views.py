@@ -14,6 +14,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.http import Http404
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+
+from accounts.permissions import * # week8 permission 선언 위치
 
 class PostList(APIView):
     def post(self, request, format=None):
@@ -30,6 +33,10 @@ class PostList(APIView):
         return Response(serializer.data)
 
 class PostDetail(APIView):
+
+    # 시간 비교가 우선시 되어야하므로 permission_class 제일 앞에 배치한다.
+    permission_classes = [IsAllowedTime, IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+
     def get(self, request, post_id):
         post = get_object_or_404(Post, id=post_id)
         serializer = PostSerializer(post)
@@ -54,7 +61,6 @@ class CommentDetail(APIView):
         comment = get_object_or_404(Comment, c_id=comment_id)
         serializer = CommentSerializer(comment)
         return Response(serializer.data)
-
 
 
 def hello_world(request):
