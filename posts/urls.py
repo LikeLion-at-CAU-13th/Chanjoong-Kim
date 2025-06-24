@@ -14,5 +14,7 @@ urlpatterns = [
     path('comment/<int:comment_id>/', CommentDetail.as_view()),
 
     #path('comment/<int:post_id>/', check_comment, name="check_comment"), # 특정 comment를 조회하기
-    path('filter/<int:category>/', filter_post_by_category, name="filter_post_by_category")
+    path('filter/<int:category>/', filter_post_by_category, name="filter_post_by_category"),
+    path('upload/', ImageUploadView.as_view(), name='image-upload')
+
 ]
