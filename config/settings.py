@@ -88,6 +88,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "allauth.account.middleware.AccountMiddleware", # week11
+    "config.middlewares.ExceptionHandlerMiddleware", # 13주차 실습용 커스텀 미들웨어
 ]
 
 # 인증 관련 요청(쿠키, 세션 등)을 허용
@@ -224,6 +225,8 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    # 커스텀 예외 처리 함수 지정
+    'EXCEPTION_HANDLER': 'config.custom_exception_handler.custom_exception_handler'
 }
 
 REST_USE_JWT = True
