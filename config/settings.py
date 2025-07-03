@@ -241,28 +241,32 @@ ACCOUNT_LOGIN_METHODS = {'email'}                  # 로그인 방식 설정
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*']    # 회원가입 시 필수 입력 필드 설정
 
 DB_PW = get_secret("DB_PW")
+Local_DB_PW = get_secret("Local_DB_PW") # 로컬 환경에서 MySQL을 사용할 때 비밀번호
 
-# DATABASES = {
-# 	'default': {
-# 		'ENGINE': 'django.db.backends.mysql',
-# 		'NAME': 'likelion13th', # DB 이름, MySQL에서 생성한 DB 이름
-# 		'USER': 'root', # root로 접속하여 DB를 만들었다면 'root'
-# 		'PASSWORD': DB_PW, # 비밀번호는 secrets.json에 저장
-# 		'HOST': 'localhost',
-# 		'PORT': '3306',
-# 	}
-# }
-
+# 로컬 환경에서 MySQL을 사용하려면 아래 주석을 해제하고 secrets.json에 DB_PW 추가
+# 로컬에서 MySQL을 사용하지 않는다면 주석 처리한 채로 두고 (DB_PW는 AWS 비번이 아닌 local MySQL 비번)
 DATABASES = {
 	'default': {
 		'ENGINE': 'django.db.backends.mysql',
-		'NAME': "likelion13th",
-		'USER': "admin", # aws에서 만든 사용자명
-		'PASSWORD': DB_PW, # 비밀번호는 secrets.json에 저장
-		'HOST': "127.0.0.1",
-		'PORT': '3307', # 터널에서 연결할 로컬 포트
+		'NAME': 'likelion13th', # DB 이름, MySQL에서 생성한 DB 이름
+		'USER': 'root', # root로 접속하여 DB를 만들었다면 'root'
+		'PASSWORD': Local_DB_PW, # 비밀번호는 secrets.json에 저장
+		'HOST': 'localhost',
+		'PORT': '3306',
 	}
 }
+
+# 원격 연결용
+# DATABASES = {
+# 	'default': {
+# 		'ENGINE': 'django.db.backends.mysql',
+# 		'NAME': "likelion13th",
+# 		'USER': "admin", # aws에서 만든 사용자명
+# 		'PASSWORD': DB_PW, # 비밀번호는 secrets.json에 저장
+# 		'HOST': "127.0.0.1",
+# 		'PORT': '3307', # 터널에서 연결할 로컬 포트
+# 	}
+# }
 
 ###AWS###
 AWS_ACCESS_KEY_ID = get_secret("AWS_ACCESS_KEY_ID") # .csv 파일에 있는 내용을 입력 Access key ID. IAM 계정 관련
