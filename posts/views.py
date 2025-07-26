@@ -29,6 +29,8 @@ from rest_framework.parsers import MultiPartParser # 12주차 과제용 swagger 
 import uuid # 고유 식별 id를 만들기 위한 import uuid
 import os
 
+from config.custom_exceptions import *
+
 # class PostList(APIView):
 #     def post(self, request, format=None):
 #         serializer = PostSerializer(data=request.data)
@@ -82,19 +84,38 @@ def hello_world(request):
         })
     
 
+# @require_http_methods(["GET"])
+# def get_post_detail(reqeust, id):
+#     post = get_object_or_404(Post, pk=id)
+#     post_detail_json = {
+#         "id" : post.id,
+#         "title" : post.title,
+#         "content" : post.content,
+#         "status" : post.status,
+#         "user" : post.user.username,
+#     }
+#     return JsonResponse({
+#         "status" : 200,
+#         "data": post_detail_json})
+...
+# 13주차 exception 처리용 커스텀 예외
 @require_http_methods(["GET"])
 def get_post_detail(reqeust, id):
-    post = get_object_or_404(Post, pk=id)
-    post_detail_json = {
-        "id" : post.id,
-        "title" : post.title,
-        "content" : post.content,
-        "status" : post.status,
-        "user" : post.user.username,
-    }
-    return JsonResponse({
-        "status" : 200,
-        "data": post_detail_json})
+    try:
+        post = Post.objects.get(id=id)
+        post_detail_json = {
+            "id" : post.id,
+            "title" : post.title,
+            "content" : post.content,
+            "status" : post.status,
+            "user" : post.user.username
+        }
+        return JsonResponse({
+            "status" : 200,
+            "data": post_detail_json})
+    except Post.DoesNotExist:
+        raise PostNotFoundException
+...
 
 @require_http_methods(["POST", "GET"])
 def post_list(request):
@@ -317,17 +338,28 @@ def filter_post_by_category(request, category):
 # 기존의 API는 주석 처리했음
 # 12주차 swagger decorator를 사용하여 API 문서화
 class PostList(APIView):
+    # permission_classes = [IsAuthenticatedOrReadOnly]  # 테스트를 위해 임시 주석처리, 13주차 과제
+    
     @swagger_auto_schema(
         operation_summary="게시글 생성",
-        operation_description="새로운 게시글을 생성합니다.",
+        operation_description="새로운 게시글을 생성합니다. 하루에 하나의 게시글만 작성할 수 있습니다.",
         request_body=PostSerializer,
-        responses={201: PostSerializer, 400: "잘못된 요청"}
+        responses={
+            201: PostSerializer, 
+            400: "잘못된 요청 - 필수 필드 누락 또는 유효성 검사 실패",
+            409: "제목 중복 오류",
+            429: "하루 게시글 작성 제한 초과"
+        }
     )
     def post(self, request, format=None):
         serializer = PostSerializer(data=request.data)
-        if serializer.is_valid():
+        if serializer.is_valid(): # raise_exception=True 제거로 더 명확한 에러 메시지 제공
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response({
+                'success': True,
+                'message': '게시글이 성공적으로 생성되었습니다.',
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     @swagger_auto_schema(
@@ -339,9 +371,17 @@ class PostList(APIView):
         posts = Post.objects.all()
 	    # 많은 post들을 받아오려면 (many=True) 써줘야 한다!
         serializer = PostSerializer(posts, many=True)
-        return Response(serializer.data)
+        return Response({
+            'success': True,
+            'message': '게시글 목록을 성공적으로 조회했습니다.',
+            'data': serializer.data,
+            'count': len(serializer.data)
+        })
     
 class PostDetail(APIView):
+    # 시간 비교가 우선시 되어야하므로 permission_class 제일 앞에 배치한다.
+    permission_classes = [IsAllowedTime, IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+    
     @swagger_auto_schema(
         operation_summary="게시글 상세 조회",
         operation_description="특정 게시글의 상세 정보를 조회합니다.",
@@ -385,7 +425,68 @@ class CommentDetail(APIView):
     def get(self, request, comment_id):
         comment = get_object_or_404(Comment, c_id=comment_id)
         serializer = CommentSerializer(comment)
-        return Response(serializer.data)
+        return Response({
+            'success': True,
+            'message': '댓글을 성공적으로 조회했습니다.',
+            'data': serializer.data
+        })
+
+class CommentList(APIView):
+    @swagger_auto_schema(
+        operation_summary="댓글 생성",
+        operation_description="새로운 댓글을 생성합니다. 댓글은 최소 15자 이상 작성해야 합니다.",
+        request_body=CommentSerializer,
+        responses={
+            201: CommentSerializer,
+            400: "잘못된 요청 - 필수 필드 누락 또는 유효성 검사 실패"
+        }
+    )
+    def post(self, request, format=None):
+        serializer = CommentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'success': True,
+                'message': '댓글이 성공적으로 작성되었습니다.',
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @swagger_auto_schema(
+        operation_summary="댓글 목록 조회",
+        operation_description="모든 댓글을 조회합니다.",
+        responses={200: CommentSerializer(many=True)}
+    )
+    def get(self, request, format=None):
+        comments = Comment.objects.all().order_by('-writen_time')  # 최신순 정렬
+        serializer = CommentSerializer(comments, many=True)
+        return Response({
+            'success': True,
+            'message': '댓글 목록을 성공적으로 조회했습니다.',
+            'data': serializer.data,
+            'count': len(serializer.data)
+        })
+
+class PostCommentList(APIView):
+    @swagger_auto_schema(
+        operation_summary="특정 게시글의 댓글 목록 조회",
+        operation_description="특정 게시글에 작성된 모든 댓글을 조회합니다.",
+        responses={200: CommentSerializer(many=True), 404: "게시글을 찾을 수 없음"}
+    )
+    def get(self, request, post_id):
+        post = get_object_or_404(Post, id=post_id)
+        comments = Comment.objects.filter(post=post).order_by('-writen_time')
+        serializer = CommentSerializer(comments, many=True)
+        return Response({
+            'success': True,
+            'message': f'게시글 "{post.title}"의 댓글 목록을 성공적으로 조회했습니다.',
+            'data': serializer.data,
+            'count': len(serializer.data),
+            'post_info': {
+                'id': post.id,
+                'title': post.title
+            }
+        })
     
 class ImageUploadView(APIView):
     parser_classes = [MultiPartParser] # 12주차 과제용 multipart parser 추가
